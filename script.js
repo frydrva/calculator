@@ -1,4 +1,4 @@
-// Select elements from the DOM
+// Select elements
 const inputDisplay = document.getElementById('calculator-input');
 const outputDisplay = document.getElementById('calculator-output');
 const historyDisplay = document.getElementById('history-display');
@@ -6,52 +6,23 @@ const clearAllBtn = document.getElementById('clear-all-btn'); // CE button
 const clearBtn = document.getElementById('clear-btn'); // C button
 const equalBtn = document.getElementById('equal-sign');
 const historyClearBtn = document.getElementById('clear-history-btn');
-const anwserBtn = document.getElementById('answer-btn');
+const answerBtn = document.getElementById('answer-btn');
 
 let currentInput = '';
-let lastResult = null; // To enable operation chaining with result
+let lastResult = null;
 let history = JSON.parse(localStorage.getItem('calculatorHistory')) || [];
 
-// Update input display with overflow hiding (text-overflow handled by CSS)
+// Update input display with overflow handling (CSS scroll)
 function updateInputDisplay() {
-  inputDisplay.innerText = currentInput || '0';
+  inputDisplay.textContent = currentInput || '0';
 }
 
 // Update output display
 function updateOutputDisplay(value) {
-  outputDisplay.innerText = value;
+  outputDisplay.textContent = value;
 }
 
-// Evaluate the current input expression safely
-function calculate() {
-  if (!currentInput) return; // Nothing to calculate
-  try {
-    let expression = currentInput.replace(/\^/g, '**');
-    if (!/^[0-9+\-*/().$^ \t]+$/.test(currentInput)) {
-      updateOutputDisplay('Error');
-      return;
-    }
-    const func = new Function('return ' + expression);
-    let result = func();
-
-    if (typeof result === 'number') {
-      result = +result.toFixed(10);
-    }
-
-    updateOutputDisplay(result);
-    history.push(`${currentInput} = ${result}`);
-    localStorage.setItem('calculatorHistory', JSON.stringify(history));
-    updateHistoryDisplay();
-
-    currentInput = '';
-    lastResult = result;
-    updateInputDisplay();
-  } catch {
-    updateOutputDisplay('Error');
-  }
-}
-
-// Update history display area
+// Update history display
 function updateHistoryDisplay() {
   if (history.length === 0) {
     historyDisplay.innerHTML = '<i>No history...</i>';
@@ -60,19 +31,79 @@ function updateHistoryDisplay() {
   }
 }
 
-// Append characters to current input safely
+// Replace all 'ans' tokens with lastResult number for evaluation
+function replaceAns(expression) {
+  if (lastResult === null) {
+    return expression.replace(/ans/g, '0');
+  }
+  // Surround with parentheses to avoid operator precedence issues
+  return expression.replace(/ans/g, `(${lastResult})`);
+}
+
+// Safely evaluate an expression string
+function safeEvaluate(expression) {
+  // Replace 'ans' tokens
+  let expr = replaceAns(expression);
+  // Replace ÷ and × symbols if any
+  expr = expr.replace(/÷/g, '/').replace(/×/g, '*');
+  // Replace ^ with ** for exponentiation
+  expr = expr.replace(/\^/g, '**');
+
+  // Validate allowed characters only: digits, operators, parentheses, dot, spaces
+  if (!/^[0-9+\-*/%^().\s]+$/.test(expr)) {
+    throw new Error('Invalid characters in expression');
+  }
+
+  // Evaluate using Function constructor
+  const func = new Function('return ' + expr);
+  return func();
+}
+
+// Perform calculation of currentInput
+function calculate() {
+  if (!currentInput.trim()) return; // Empty input
+
+  try {
+    let result = safeEvaluate(currentInput);
+
+    if (typeof result !== 'number' || !isFinite(result)) {
+      throw new Error('Invalid result');
+    }
+
+    // Round result to max 10 decimals for neatness
+    result = +result.toFixed(10);
+
+    updateOutputDisplay(result);
+    history.push(`${currentInput} = ${result}`);
+    localStorage.setItem('calculatorHistory', JSON.stringify(history));
+    updateHistoryDisplay();
+
+    lastResult = result;
+    currentInput = '';
+    updateInputDisplay();
+
+  } catch {
+    updateOutputDisplay('Error');
+  }
+}
+
+// Append value to input safely
 function appendToInput(value) {
-  const operators = ['+', '-', '*', '/', '^'];
+  // If the value is an operator and currentInput empty but lastResult exists, start with lastResult
+  const operators = ['+', '-', '*', '/', '^', '%'];
   if (lastResult !== null && operators.includes(value) && currentInput === '') {
     currentInput = lastResult.toString();
   }
 
+  // Prevent multiple decimals in a number block
   if (value === '.') {
-    const lastNumberSegment = currentInput.split(/[\+\-\*\/\^\(\)\$]/).pop();
-    if (lastNumberSegment.includes('.')) {
-      return; // ignore second decimal in a number block
-    }
+    const segments = currentInput.split(/[\+\-\*\/\^\%\(\)]/);
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment.includes('.')) return;
   }
+
+  // Prevent adjacent 'ans's (not strictly necessary, but cleaner UX)
+  if (value === 'ans' && currentInput.endsWith('ans')) return;
 
   currentInput += value;
   updateInputDisplay();
@@ -86,7 +117,7 @@ clearBtn.addEventListener('click', () => {
   }
 });
 
-// Clear all input (CE button)
+// Clear all (CE button)
 clearAllBtn.addEventListener('click', () => {
   currentInput = '';
   updateInputDisplay();
@@ -104,59 +135,42 @@ historyClearBtn.addEventListener('click', () => {
   updateHistoryDisplay();
 });
 
-// Answer button: append last result from history to input
-anwserBtn.addEventListener('click', () => {
-  if (history.length > 0) {
-    // Get the last entry from history
-    const lastEntry = history[history.length - 1];
-    // Extract the result from the last entry (e.g., "2 + 2 = 4")
-    const result = lastEntry.split('=').pop().trim();
-    // Append the result to the current input
-    currentInput += result;
-    updateInputDisplay();
-  }
+// Answer button: Insert 'ans' visibly but use lastResult internally
+answerBtn.addEventListener('click', () => {
+  appendToInput('ans');
 });
 
-// Button click handlers for other buttons except CE, C, =
+// Buttons for digits/operators except clear/equal handled here
 document.querySelectorAll('.calculator-buttons button').forEach(button => {
-  if (button.id === 'clear-all-btn' || button.id === 'clear-btn' || button.id === 'equal-sign') {
-    return; // handled above
+  if (['clear-all-btn', 'clear-btn', 'equal-sign', 'clear-history-btn', 'answer-btn'].includes(button.id)) {
+    return; // Already handled above
   }
   button.addEventListener('click', () => {
-    const val = button.value;
-    if (val !== undefined) {
-      appendToInput(val);
+    if (button.value !== undefined) {
+      appendToInput(button.value);
     }
   });
 });
 
-// Improved keyboard support
-document.addEventListener('keydown', (event) => {
+// Keyboard support
+document.addEventListener('keydown', event => {
   const key = event.key;
 
-  // Allowed numeric keys
   if (/^\d$/.test(key)) {
     appendToInput(key);
-  }
-  // Allowed operators and parentheses
-  else if (['+', '-', '*', '/', '^', '(', ')', '.'].includes(key)) {
+  } else if (['+', '-', '*', '/', '^', '(', ')', '%', '.'].includes(key)) {
     appendToInput(key);
-  }
-  else if (key === '$') {
-    event.preventDefault();
-    currentInput = currentInput+=input; 
-    updateInputDisplay();
-  }
-  else if (key === 'Enter') {
+  } else if (key.toLowerCase() === 'a') {
+    // Optional: bind 'a' key to insert ans
+    appendToInput('ans');
+  } else if (key === 'Enter') {
     event.preventDefault();
     calculate();
-  }
-  else if (key === 'Backspace') {
+  } else if (key === 'Backspace') {
     event.preventDefault();
     currentInput = currentInput.slice(0, -1);
     updateInputDisplay();
-  }
-  else if (key === 'Escape') {
+  } else if (key === 'Escape') {
     event.preventDefault();
     currentInput = '';
     updateInputDisplay();
@@ -165,8 +179,7 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-// Initial state
+// Init displays
 updateInputDisplay();
 updateOutputDisplay(0);
 updateHistoryDisplay();
-
