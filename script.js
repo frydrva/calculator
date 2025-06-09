@@ -6,6 +6,7 @@ const clearAllBtn = document.getElementById('clear-all-btn'); // CE button
 const clearBtn = document.getElementById('clear-btn'); // C button
 const equalBtn = document.getElementById('equal-sign');
 const historyClearBtn = document.getElementById('clear-history-btn');
+const anwserBtn = document.getElementById('answer-btn');
 
 let currentInput = '';
 let lastResult = null; // To enable operation chaining with result
@@ -26,7 +27,7 @@ function calculate() {
   if (!currentInput) return; // Nothing to calculate
   try {
     let expression = currentInput.replace(/\^/g, '**');
-    if (!/^[0-9+\-*/().^ \t]+$/.test(currentInput)) {
+    if (!/^[0-9+\-*/().$^ \t]+$/.test(currentInput)) {
       updateOutputDisplay('Error');
       return;
     }
@@ -67,7 +68,7 @@ function appendToInput(value) {
   }
 
   if (value === '.') {
-    const lastNumberSegment = currentInput.split(/[\+\-\*\/\^\(\)]/).pop();
+    const lastNumberSegment = currentInput.split(/[\+\-\*\/\^\(\)\$]/).pop();
     if (lastNumberSegment.includes('.')) {
       return; // ignore second decimal in a number block
     }
@@ -103,6 +104,19 @@ historyClearBtn.addEventListener('click', () => {
   updateHistoryDisplay();
 });
 
+// Answer button: append last result from history to input
+anwserBtn.addEventListener('click', () => {
+  if (history.length > 0) {
+    // Get the last entry from history
+    const lastEntry = history[history.length - 1];
+    // Extract the result from the last entry (e.g., "2 + 2 = 4")
+    const result = lastEntry.split('=').pop().trim();
+    // Append the result to the current input
+    currentInput += result;
+    updateInputDisplay();
+  }
+});
+
 // Button click handlers for other buttons except CE, C, =
 document.querySelectorAll('.calculator-buttons button').forEach(button => {
   if (button.id === 'clear-all-btn' || button.id === 'clear-btn' || button.id === 'equal-sign') {
@@ -128,6 +142,11 @@ document.addEventListener('keydown', (event) => {
   else if (['+', '-', '*', '/', '^', '(', ')', '.'].includes(key)) {
     appendToInput(key);
   }
+  else if (key === '$') {
+    event.preventDefault();
+    currentInput = currentInput+=input; 
+    updateInputDisplay();
+  }
   else if (key === 'Enter') {
     event.preventDefault();
     calculate();
@@ -150,3 +169,4 @@ document.addEventListener('keydown', (event) => {
 updateInputDisplay();
 updateOutputDisplay(0);
 updateHistoryDisplay();
+

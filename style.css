@@ -72,18 +72,18 @@ body {
   padding: 10px 25px;
   font-size: 36px;
   font-family: "Lucida Console", sans-serif;
+  direction: rtl;
   
 
 }
 .calculator-display h1,
 .calculator-display h2 {
   overflow: hidden;
-  max-height: 100%;
-  max-width: 100%;
+  max-height: 90%;
+  max-width: 90%;
   
   
 }
-
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
@@ -165,6 +165,10 @@ button:focus {
 .decimal-sign {
   grid-column: 3;
 }
+.answer-button{
+  grid-column: 1 / span 4;
+}
+
 
 /* Media Query: Large Smartphone (Vertical) */
 @media screen and (max-width: 600px) {
@@ -183,6 +187,7 @@ button:focus {
   max-width: 100%;
   border-radius: 10px;
   overflow: hidden; /* Hide overflow */
+  
 }
 
 .calculator-display h1,
