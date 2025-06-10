@@ -6,7 +6,6 @@ const clearAllBtn = document.getElementById('clear-all-btn'); // CE button
 const clearBtn = document.getElementById('clear-btn'); // C button
 const equalBtn = document.getElementById('equal-sign');
 const historyClearBtn = document.getElementById('clear-history-btn');
-const answerBtn = document.getElementById('answer-btn');
 
 let currentInput = '';
 let lastResult = null;
@@ -36,27 +35,25 @@ function replaceAns(expression) {
   if (lastResult === null) {
     return expression.replace(/ans/g, '0');
   }
-  // Surround with parentheses to avoid operator precedence issues
   return expression.replace(/ans/g, `(${lastResult})`);
 }
 
 // Safely evaluate an expression string
 function safeEvaluate(expression) {
-  // Replace 'ans' tokens
-  let expr = replaceAns(expression);
-  // Replace ÷ and × symbols if any
-  expr = expr.replace(/÷/g, '/').replace(/×/g, '*');
-  // Replace ^ with ** for exponentiation
-  expr = expr.replace(/\^/g, '**');
-
-  // Validate allowed characters only: digits, operators, parentheses, dot, spaces
-  if (!/^[0-9+\-*/%^().\s]+$/.test(expr)) {
+  // Only allow numbers, +, -, *, /, %, ^, and parentheses
+  if (!/^[\d+\-*/%^().\s]+$/.test(expression)) {
     throw new Error('Invalid characters in expression');
   }
 
-  // Evaluate using Function constructor
-  const func = new Function('return ' + expr);
-  return func();
+  // Convert ^ to ** for exponentiation
+  const expr = expression.replace(/\^/g, '**');
+
+  try {
+    // Use a restricted parser via Function with safer scope
+    return Function('"use strict"; return (' + expr + ')')();
+  } catch (e) {
+    throw new Error('Invalid expression');
+  }
 }
 
 // Perform calculation of currentInput
@@ -70,16 +67,14 @@ function calculate() {
       throw new Error('Invalid result');
     }
 
-    // Round result to max 10 decimals for neatness
     result = +result.toFixed(10);
-
     updateOutputDisplay(result);
     history.push(`${currentInput} = ${result}`);
     localStorage.setItem('calculatorHistory', JSON.stringify(history));
     updateHistoryDisplay();
 
     lastResult = result;
-    currentInput = '';
+    currentInput = result.toString(); // Set input to result
     updateInputDisplay();
 
   } catch {
@@ -89,8 +84,9 @@ function calculate() {
 
 // Append value to input safely
 function appendToInput(value) {
-  // If the value is an operator and currentInput empty but lastResult exists, start with lastResult
   const operators = ['+', '-', '*', '/', '^', '%'];
+
+  // If the value is an operator and currentInput is empty but lastResult exists, start with lastResult
   if (lastResult !== null && operators.includes(value) && currentInput === '') {
     currentInput = lastResult.toString();
   }
@@ -102,8 +98,13 @@ function appendToInput(value) {
     if (lastSegment.includes('.')) return;
   }
 
-  // Prevent adjacent 'ans's (not strictly necessary, but cleaner UX)
-  if (value === 'ans' && currentInput.endsWith('ans')) return;
+  // Prevent adjacent operators
+  if (operators.includes(value)) {
+    const lastChar = currentInput.slice(-1);
+    if (operators.includes(lastChar)) {
+      currentInput = currentInput.slice(0, -1); // Replace last operator
+    }
+  }
 
   currentInput += value;
   updateInputDisplay();
@@ -135,14 +136,9 @@ historyClearBtn.addEventListener('click', () => {
   updateHistoryDisplay();
 });
 
-// Answer button: Insert 'ans' visibly but use lastResult internally
-answerBtn.addEventListener('click', () => {
-  appendToInput('ans');
-});
-
 // Buttons for digits/operators except clear/equal handled here
 document.querySelectorAll('.calculator-buttons button').forEach(button => {
-  if (['clear-all-btn', 'clear-btn', 'equal-sign', 'clear-history-btn', 'answer-btn'].includes(button.id)) {
+  if (['clear-all-btn', 'clear-btn', 'equal-sign', 'clear-history-btn'].includes(button.id)) {
     return; // Already handled above
   }
   button.addEventListener('click', () => {
@@ -160,9 +156,6 @@ document.addEventListener('keydown', event => {
     appendToInput(key);
   } else if (['+', '-', '*', '/', '^', '(', ')', '%', '.'].includes(key)) {
     appendToInput(key);
-  } else if (key.toLowerCase() === 'a') {
-    // Optional: bind 'a' key to insert ans
-    appendToInput('ans');
   } else if (key === 'Enter') {
     event.preventDefault();
     calculate();

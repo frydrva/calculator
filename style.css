@@ -72,7 +72,7 @@ body {
   padding: 10px 25px;
   font-size: 36px;
   font-family: "Lucida Console", sans-serif;
-  direction: rtl;
+ 
   
 
 }
@@ -165,9 +165,7 @@ button:focus {
 .decimal-sign {
   grid-column: 3;
 }
-.answer-button{
-  grid-column: 1 / span 4;
-}
+
 
 
 /* Media Query: Large Smartphone (Vertical) */
@@ -183,7 +181,7 @@ button:focus {
   margin: 10px;
   display: flex;
   flex-direction: column;
-  align-items: flex-end; /* Align items to the right */
+  align-items: flex-end;
   max-width: 100%;
   border-radius: 10px;
   overflow: hidden; /* Hide overflow */
@@ -196,7 +194,7 @@ button:focus {
   padding: 25px 10px; /* Adjust padding for better spacing */
   font-size: 45px; /* Adjust font size for output */
   font-family: "Lucida Console", sans-serif;
-  white-space: nowrap; /* Prevent wrapping */
+  white-space: nowrap;  
   overflow: hidden; /* Hide overflow */
   text-overflow: ellipsis; /* Show ellipsis for overflow */
 }
